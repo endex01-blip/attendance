@@ -327,19 +327,49 @@ function updateSessionInfo() {
 }
 
 function refreshReport() {
-    const tbody = document.getElementById('reportBody');
-    const summary = document.getElementById('reportSummary');
-    if (!students.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Database evaluates null elements.</td></tr>';
-        summary.textContent = ''; return;
-    }
-    let pCount = 0, pnd = 0;
-    tbody.innerHTML = students.map(s => {
-        const rec = getAttendanceStatus(s.id);
-        if (rec.status === 'present') pCount++; else pnd++;
-        return `<tr><td><code>${s.id}</code></td><td><strong>${s.name}</strong></td><td>${rec.status === 'present' ? '✅ Present' : rec.status === 'absent' ? '❌ Absent' : '⏳ Unresolved'}</td><td>${rec.source === 'scan' ? '📱 Scan Verified' : rec.source === 'manual' ? '🖊️ Instructor Manual' : '-'}</td><td>${rec.timestamp ? new Date(rec.timestamp).toLocaleTimeString() : '-'}</td></tr>`;
-    }).join('');
-    summary.innerHTML = `📊 Metrics Snapshot: Present: ${pCount} · Remaining Pending: ${pnd}`;
+  const tbody = document.getElementById('reportBody');
+  const summary = document.getElementById('reportSummary');
+  
+  showToast('📥 Fetching live check-ins from cloud...');
+  
+  // Query Google Sheets for today's active scan logs
+  fetch(`${SHEETS_WEBHOOK_URL}?class=${encodeURIComponent(currentClass)}`)
+    .then(res => res.json())
+    .then(cloudData => {
+      // Merge cloud check-ins into our local display state
+      cloudData.forEach(item => {
+        attendance[item.id] = { 
+          status: item.status, 
+          source: item.source, 
+          timestamp: new Date().toISOString().split('T')[0] + ' ' + item.timestamp 
+        };
+        
+        // Add student to roster array if they checked in but weren't pre-registered
+        if (!students.some(s => s.id === item.id)) {
+          students.push({ id: item.id, name: item.name });
+        }
+      });
+      
+      // Save merged maps and update UI lists
+      localStorage.setItem('students', JSON.stringify(students));
+      saveAttendance();
+      renderStudents();
+      
+      // Render the analytics table metrics
+      let pCount = 0, pnd = 0;
+      tbody.innerHTML = students.map(s => {
+          const rec = getAttendanceStatus(s.id);
+          if (rec.status === 'present') pCount++; else pnd++;
+          return `<tr><td><code>${s.id}</code></td><td><strong>${s.name}</strong></td><td>${rec.status === 'present' ? '✅ Present' : rec.status === 'absent' ? '❌ Absent' : '⏳ Unresolved'}</td><td>${rec.source === 'scan' ? '📱 Scan Verified' : rec.source === 'manual' ? '🖊️ Instructor Manual' : '-'}</td><td>${rec.timestamp ? rec.timestamp : '-'}</td></tr>`;
+      }).join('');
+      
+      summary.innerHTML = `📊 Metrics Snapshot: Present: ${pCount} · Remaining Pending: ${pnd}`;
+      showToast('✅ Live dashboard sync complete.');
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Failed to fetch data stream from Google Sheets backend.');
+    });
 }
 
 function exportReportCSV() {
