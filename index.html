@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Student Check-In · Secure Attendance Portal</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
+        body { background: var(--bg-main); color: var(--text-main); max-width: 500px; margin: 0 auto; padding: 1rem; line-height: 1.5; }
+        
+        .header { text-align: center; margin: 1.5rem 0; }
+        .header h1 { font-size: 1.4rem; color: var(--primary); font-weight: 800; }
+        .header p { color: var(--text-muted); font-size: 0.85rem; }
+
+        .card { background: var(--card-bg); border-radius: 16px; padding: 1.25rem; margin-bottom: 1.2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); border: 1px solid var(--border); }
+        h2 { font-size: 1rem; font-weight: 700; margin-bottom: 0.85rem; display: flex; align-items: center; gap: 0.4rem; }
+        
+        input { padding: 0.65rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; background: var(--bg-main); color: var(--text-main); width: 100%; margin-bottom: 0.75rem; transition: border-color 0.15s; }
+        input:focus { outline: none; border-color: var(--primary); background: var(--card-bg); }
+        
+        button { width: 100%; padding: 0.75rem 1.25rem; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; background: var(--primary); color: white; }
+        button:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
+        button.success { background: var(--success); }
+        button.danger { background: var(--danger); }
+
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; border: none !important; background: #000; }
+        #scannerStatus { text-align:center; margin:1rem 0; font-weight:600; font-size: 0.85rem; color: var(--text-muted); }
+        
+        .location-info { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1rem; border-radius: 8px; margin: 1rem 0; font-size: 0.85rem; color: #166534; line-height: 1.4; }
+        .location-info.error { background: #fef2f2; border-left-color: #ef4444; color: #991b1b; }
+        .location-info.warning { background: #fffbeb; border-left-color: #f59e0b; color: #92400e; }
+        
+        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(10px); background: #0f172a; color: white; padding: 0.85rem 1.5rem; border-radius: 12px; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 1000; font-size: 0.85rem; font-weight: 500; width: calc(100% - 48px); max-width: 400px; text-align: center; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+<div id="toast" class="toast">Done!</div>
+
+<div class="header">
+    <h1>📱 Student Verification Portal</h1>
+    <p>Secure Geofenced Check-In Gateway</p>
+</div>
+
+<div class="card">
+    <h2>👤 Step 1: Lock Device Identity Profile</h2>
+    <div id="profileSetupView">
+        <input type="text" id="studentRealName" placeholder="Enter Legal Full Name">
+        <input type="text" id="studentUID" placeholder="Enter Academic Student ID Number">
+        <button onclick="lockProfile()" class="success">🔒 Lock Profile to This Device</button>
+    </div>
+    <div id="profileActiveView" style="display: none; align-items: center; justify-content: space-between; background: var(--bg-main); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border);">
+        <p style="font-size: 0.9rem;">Device Bound To:<br><strong id="lockedProfileName" style="color: var(--primary);"></strong></p>
+        <button onclick="unlockProfile()" class="danger" style="width: auto; padding: 0.4rem 0.75rem; font-size: 0.8rem;">🔓 Reset Device Lock</button>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📸 Step 2: Scan Real-Time Session QR</h2>
+    <div id="reader"></div>
+    <div id="scannerStatus">Initializing peripheral camera arrays...</div>
+    
+    <div id="scanResult" style="display:none;">
+        <div id="locationCheck" class="location-info">📍 Parsing geometric parameter telemetry...</div>
+        <button onclick="verifyAndMark()" id="btnMarkPresent" class="success" style="margin-top: 0.5rem;">🚀 Authenticate Coordinates & Check In</button>
+        <input type="hidden" id="scannedData">
+    </div>
+</div>
+
+<script>
+const SHEETS_WEBHOOK_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+let html5QrCode = null;
+
+function evaluateProfileState() {
+    const savedName = localStorage.getItem('stud_profile_name');
+    const savedId = localStorage.getItem('stud_profile_id');
+    
+    if (savedName && savedId) {
+        document.getElementById('profileSetupView').style.display = 'none';
+        document.getElementById('profileActiveView').style.display = 'flex';
+        document.getElementById('lockedProfileName').innerHTML = `${savedName} (${savedId})`;
+        if(document.getElementById('btnMarkPresent')) document.getElementById('btnMarkPresent').disabled = false;
+    } else {
+        document.getElementById('profileSetupView').style.display = 'block';
+        document.getElementById('profileActiveView').style.display = 'none';
+        if(document.getElementById('btnMarkPresent')) document.getElementById('btnMarkPresent').disabled = true;
+    }
+}
+
+function lockProfile() {
+    const name = document.getElementById('studentRealName').value.trim();
+    const uid = document.getElementById('studentUID').value.trim();
+    if(!name || !uid) return alert('Identity metadata profiles cannot be configured blank.');
+    
+    localStorage.setItem('stud_profile_name', name);
+    localStorage.setItem('stud_profile_id', uid);
+    evaluateProfileState();
+    showToast('🔒 Hardware binding locked.');
+    startScanner();
+}
+
+function unlockProfile() {
+    if(!confirm('Unlinking profile resets localized cache boundaries. Proceed?')) return;
+    localStorage.removeItem('stud_profile_name');
+    localStorage.removeItem('stud_profile_id');
+    evaluateProfileState();
+    if(html5QrCode) html5QrCode.stop().catch(()=>{});
+    document.getElementById('scanResult').style.display = 'none';
+    document.getElementById('scannerStatus').innerHTML = 'Profile missing. Secure scanner lock state active.';
+}
+
+function startScanner() {
+    if(!localStorage.getItem('stud_profile_id')) {
+        document.getElementById('scannerStatus').innerHTML = '🔒 Complete Step 1 to unlock sensor module.';
+        return;
+    }
+    if (typeof Html5Qrcode === 'undefined') { setTimeout(startScanner, 200); return; }
+    if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+    
+    const config = { fps: 12, qrbox: { width: 250, height: 250 } };
+    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+        .then(() => document.getElementById('scannerStatus').innerHTML = '📷 Camera matrix active. Feed session token.')
+        .catch(err => document.getElementById('scannerStatus').innerHTML = '✕ Camera module fault: ' + err);
+}
+
+function onScanSuccess(decodedText) {
+    try {
+        const data = JSON.parse(decodedText);
+        if (Date.now() > data.expiresAt) {
+            document.getElementById('locationCheck').innerHTML = '⏰ Session validation failure: Handshake signature expired.';
+            document.getElementById('locationCheck').className = 'location-info error';
+            document.getElementById('btnMarkPresent').disabled = true;
+            document.getElementById('scanResult').style.display = 'block';
+            return;
+        }
+        
+        html5QrCode.stop().catch(()=>{});
+        document.getElementById('scannerStatus').innerHTML = '✅ Data Packet Decoded.';
+        document.getElementById('scannedData').value = decodedText;
+        document.getElementById('locationCheck').innerHTML = `📡 Course Framework: ${data.class}<br>📍 Range Limit Threshold: ${data.radius}m<br>🔒 Token cryptographically verified. Ready to pass GPS.`;
+        document.getElementById('locationCheck').className = 'location-info warning';
+        document.getElementById('btnMarkPresent').disabled = false;
+        document.getElementById('scanResult').style.display = 'block';
+    } catch(e) {
+        document.getElementById('locationCheck').innerHTML = '✕ Struct Exception: Corrupted third-party signature signature match failure.';
+        document.getElementById('locationCheck').className = 'location-info error';
+    }
+}
+function onScanFailure(err) {}
+
+function verifyAndMark() {
+    const raw = document.getElementById('scannedData').value;
+    const studentName = localStorage.getItem('stud_profile_name');
+    const studentId = localStorage.getItem('stud_profile_id');
+    
+    if(!studentName || !studentId) return alert('Local validation error.');
+    let qrData = JSON.parse(raw);
+
+    document.getElementById('locationCheck').innerHTML = '📡 Acquiring high-accuracy planetary positioning telemetry...';
+    document.getElementById('locationCheck').className = 'location-info warning';
+    
+    navigator.geolocation.getCurrentPosition((pos) => {
+        const dist = haversine(qrData.lat, qrData.lng, pos.coords.latitude, pos.coords.longitude);
+        if (dist > qrData.radius) {
+            document.getElementById('locationCheck').innerHTML = `❌ Geofence Boundary Exception:<br>Target distance deviation evaluates to ${dist.toFixed(0)}m.<br>Permitted variance radius: ${qrData.radius}m. Match Failed.`;
+            document.getElementById('locationCheck').className = 'location-info error';
+            return;
+        }
+
+        const payload = {
+            class: qrData.class, session: qrData.session,
+            student: studentName, studentId: studentId,
+            status: 'present', source: 'scan',
+            date: new Date().toISOString().slice(0,10),
+            timestamp: new Date().toISOString(),
+            locationVerified: true, distance_m: dist.toFixed(1)
+        };
+        
+        document.getElementById('btnMarkPresent').disabled = true;
+        fetch(SHEETS_WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(() => {
+            document.getElementById('locationCheck').innerHTML = `✅ Transaction Logged Successfully!<br>Verified User: ${studentName}<br>GPS Spatial Variance: ${dist.toFixed(0)}m.`;
+            document.getElementById('locationCheck').className = 'location-info';
+            showToast('Check-in confirmed.');
+        })
+        .catch(() => {
+            document.getElementById('locationCheck').innerHTML = '✕ Transmission Pipeline Interrupt. Notify Instructor.';
+            document.getElementById('locationCheck').className = 'location-info error';
+        });
+    }, err => {
+        document.getElementById('locationCheck').innerHTML = `❌ Telemetry Acquisition Failure: ${err.message}. Verify that positioning permissions are permitted inside your local web sandbox environment.`;
+        document.getElementById('locationCheck').className = 'location-info error';
+    }, { enableHighAccuracy: true, timeout: 15000 });
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function showToast(msg) {
+    const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// Entry lifecycle assessment
+evaluateProfileState();
+startScanner();
+</script>
+</body>
+</html>

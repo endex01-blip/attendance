@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instructor Console · Smart Attendance System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #16a34a;
+            --success-hover: #15803d;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
+        body { background: var(--bg-main); color: var(--text-main); max-width: 1000px; margin: 0 auto; padding: 1.5rem; line-height: 1.5; }
+        
+        .header { margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+        .header h1 { font-size: 1.75rem; color: var(--primary); }
+        .header p { color: var(--text-muted); font-size: 0.95rem; }
+
+        .card { background: var(--card-bg); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); border: 1px solid var(--border); }
+        h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 0.5rem; }
+        
+        .flex-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 1rem; }
+        .flex-row > * { flex: 1; min-width: 140px; }
+        .flex-row button { flex: 0 1 auto; }
+        
+        input, select { padding: 0.65rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; background: var(--bg-main); color: var(--text-main); width: 100%; transition: border-color 0.15s; }
+        input:focus { outline: none; border-color: var(--primary); background: var(--card-bg); }
+        
+        button { padding: 0.65rem 1.25rem; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; background: var(--primary); color: white; }
+        button:active { transform: scale(0.98); }
+        button:hover { background: var(--primary-hover); }
+        button.danger { background: var(--danger); }
+        button.danger:hover { background: var(--danger-hover); }
+        button.success { background: var(--success); }
+        button.success:hover { background: var(--success-hover); }
+        button.outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); padding: 0.55rem 1.15rem; }
+        button.outline:hover { background: rgba(37, 99, 235, 0.05); }
+
+        .table-responsive { width: 100%; overflow-x: auto; margin: 1rem 0; border-radius: 8px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+        th, td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+        th { background: var(--bg-main); font-weight: 600; color: var(--text-muted); }
+        
+        .qr-container { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin-top: 1.5rem; padding: 1.5rem; background: var(--bg-main); border-radius: 12px; border: 1px dashed var(--border); }
+        .qr-container canvas { border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-radius: 8px; }
+        .badge { background: #e2e8f0; padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
+        
+        .status-present { color: var(--success); font-weight: 700; }
+        .status-absent { color: var(--danger); font-weight: 700; }
+        .source-tag { padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+        .source-scan { background: #dbeafe; color: #1e40af; }
+        .source-manual { background: #fef3c7; color: #92400e; }
+
+        .toast { position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: white; padding: 0.85rem 1.5rem; border-radius: 12px; opacity: 0; transform: translateY(10px); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; z-index: 1000; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); font-size: 0.9rem; font-weight: 500; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body>
+
+<div id="toast" class="toast">Done!</div>
+
+<div class="header">
+    <h1>👨‍🏫 Instructor Administration Console</h1>
+    <p>Manage courses, establish geofences, and coordinate active tracking operations.</p>
+</div>
+
+<div class="card">
+    <h2>📚 Class Roster Setup</h2>
+    <div class="flex-row">
+        <input type="text" id="className" placeholder="Course Name (e.g., Industrial Chemistry I)">
+        <button onclick="saveClass()">Save Title</button>
+    </div>
+    <div class="flex-row">
+        <input type="text" id="studentID" placeholder="Student ID Number">
+        <input type="text" id="studentName" placeholder="Student Full Name">
+        <button onclick="addStudent()">➕ Add to Roster</button>
+        <button class="danger" onclick="clearAllStudents()">🗑️ Wipe Roster</button>
+    </div>
+    
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Student ID</th>
+                    <th>Student Name</th>
+                    <th>Status</th>
+                    <th>Verification Method</th>
+                    <th style="width: 140px; text-align: center;">Manual Controls</th>
+                </tr>
+            </thead>
+            <tbody id="studentList"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📍 Geofencing Coordinates Matrix</h2>
+    <div class="flex-row">
+        <div>
+            <label style="font-size:0.75rem; font-weight:600; color:var(--text-muted)">Latitude</label>
+            <input type="number" id="classLat" step="any" placeholder="Coordinate Lat">
+        </div>
+        <div>
+            <label style="font-size:0.75rem; font-weight:600; color:var(--text-muted)">Longitude</label>
+            <input type="number" id="classLng" step="any" placeholder="Coordinate Lng">
+        </div>
+        <div>
+            <label style="font-size:0.75rem; font-weight:600; color:var(--text-muted)">Allowed Radius (meters)</label>
+            <input type="number" id="classRadius" value="50">
+        </div>
+    </div>
+    <button onclick="getCurrentLocation()" class="outline">📍 Pull Coordinates from My GPS</button>
+</div>
+
+<div class="card">
+    <h2>📱 Dynamic QR Generator</h2>
+    <div class="flex-row">
+        <button onclick="generateQR()">🔄 Issue Secure Session Token</button>
+        <span class="badge" id="sessionInfo">No window open</span>
+    </div>
+    <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <label style="font-size: 0.9rem;">Window expiration timeframe (minutes):</label>
+        <input type="number" id="expiryMinutes" value="5" min="1" max="60" style="width:80px;">
+    </div>
+    
+    <div class="qr-container" id="qrDisplay" style="display:none;">
+        <canvas id="qrCanvas"></canvas>
+        <p id="qrData" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;"></p>
+        <div id="countdownDisplay" style="font-size: 1.1rem; font-weight: 700;"></div>
+        <button class="success" onclick="markAllPresent()" style="margin-top: 0.5rem;">✅ Force Override: All Present</button>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📊 Session Live Data Matrix</h2>
+    <div class="flex-row" style="margin-bottom: 1rem;">
+        <button onclick="refreshReport()">🔄 Refresh Data View</button>
+        <button onclick="exportReportCSV()" class="outline">📥 Export Local CSV File</button>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Student Name</th>
+                    <th>Attendance Status</th>
+                    <th>Method Signature</th>
+                    <th>Timestamp Logged</th>
+                </tr>
+            </thead>
+            <tbody id="reportBody"></tbody>
+        </table>
+    </div>
+    <p id="reportSummary" style="font-weight: 600; font-size: 0.95rem; margin-top: 0.5rem;"></p>
+</div>
+
+<div class="card">
+    <h2>☁️ Data Synchronization Pipeline</h2>
+    <div class="flex-row">
+        <button onclick="syncToSheets()" class="success">☁️ Synchronize with Google Sheets Webhook</button>
+        <button onclick="resetAttendance()" class="danger">🔄 Wipe Daily Session Variables</button>
+    </div>
+</div>
+
+<script>
+const SHEETS_WEBHOOK_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+let countdownInterval = null;
+let students = JSON.parse(localStorage.getItem('students')) || [];
+let attendance = JSON.parse(localStorage.getItem('attendance')) || {};
+let currentClass = localStorage.getItem('className') || 'My Custom Course';
+let currentSession = null;
+let qrCanvasInstance = null;
+
+function saveAttendance() { localStorage.setItem('attendance', JSON.stringify(attendance)); }
+function getAttendanceStatus(id) { return attendance[id] || { status: 'pending', source: '-', timestamp: '' }; }
+
+function saveClass() {
+    const name = document.getElementById('className').value.trim();
+    if (name) { currentClass = name; localStorage.setItem('className', name); showToast('Course profile updated.'); }
+}
+
+function addStudent() {
+    const idInput = document.getElementById('studentID');
+    const nameInput = document.getElementById('studentName');
+    
+    const id = idInput.value.trim();
+    const name = nameInput.value.trim();
+    
+    if (!id || !name) return alert('Both Student ID and Student Full Name are required.');
+    
+    // Check for duplicate ID values
+    if (students.some(s => s.id === id)) return alert('A student with this ID number already exists in the roster.');
+
+    students.push({ id, name });
+    localStorage.setItem('students', JSON.stringify(students));
+    
+    idInput.value = '';
+    nameInput.value = '';
+    renderStudents();
+    refreshReport();
+    showToast(`Registered: ${name} (${id})`);
+}
+
+function removeStudent(id) {
+    if (!confirm('Drop entity from target arrays?')) return;
+    students = students.filter(s => s.id !== id);
+    delete attendance[id];
+    saveAttendance();
+    localStorage.setItem('students', JSON.stringify(students));
+    renderStudents();
+    refreshReport();
+}
+
+function clearAllStudents() {
+    if (!confirm('Destructive execution check: Clear entire database list?')) return;
+    students = []; attendance = {}; saveAttendance();
+    localStorage.setItem('students', JSON.stringify(students));
+    renderStudents();
+    refreshReport();
+}
+
+function renderStudents() {
+    const tbody = document.getElementById('studentList');
+    if (!students.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding:2rem;">Roster buffer empty. Populate fields to map instances.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = students.map((s, idx) => {
+        const rec = getAttendanceStatus(s.id);
+        return `<tr>
+            <td>${idx+1}</td>
+            <td><code>${s.id}</code></td>
+            <td><strong>${s.name}</strong></td>
+            <td class="${rec.status === 'present' ? 'status-present' : rec.status === 'absent' ? 'status-absent' : ''}">${rec.status === 'present' ? '✅ Present' : rec.status === 'absent' ? '❌ Absent' : '⏳ Pending'}</td>
+            <td><span class="source-tag ${rec.source === 'scan' ? 'source-scan' : rec.source === 'manual' ? 'source-manual' : ''}">${rec.source === 'scan' ? '📱 Scan' : rec.source === 'manual' ? '🖊️ Manual' : '-'}</span></td>
+            <td style="text-align:center;">
+                <button onclick="markStudent('${s.id}','present')" class="success" style="padding:0.3rem 0.6rem; font-size:0.75rem;">P</button>
+                <button onclick="markStudent('${s.id}','absent')" style="padding:0.3rem 0.6rem; font-size:0.75rem; background:#475569;">A</button>
+                <button onclick="removeStudent('${s.id}')" class="danger" style="padding:0.3rem 0.6rem; font-size:0.75rem;">✕</button>
+            </td>
+        </tr>`;
+    }).join('');
+    document.getElementById('className').value = currentClass;
+    updateSessionInfo();
+    ['classLat','classLng','classRadius'].forEach(id => { const val = localStorage.getItem(id); if (val) document.getElementById(id).value = val; });
+}
+
+function getCurrentLocation() {
+    if (!navigator.geolocation) return alert('GPS Engine interface absent.');
+    showToast('📡 Querying satellite arrays...');
+    navigator.geolocation.getCurrentPosition((pos) => {
+        document.getElementById('classLat').value = pos.coords.latitude.toFixed(6);
+        document.getElementById('classLng').value = pos.coords.longitude.toFixed(6);
+        localStorage.setItem('classLat', pos.coords.latitude);
+        localStorage.setItem('classLng', pos.coords.longitude);
+        showToast('📍 Fixed point array updated.');
+    }, err => alert('Exception parsing position: ' + err.message), { enableHighAccuracy: true });
+}
+
+function markStudent(id, status) {
+    attendance[id] = { status, source: 'manual', timestamp: new Date().toISOString() };
+    saveAttendance(); renderStudents(); refreshReport();
+}
+
+function markAllPresent() {
+    if (!students.length) return alert('Null registry pointer.');
+    students.forEach(s => { attendance[s.id] = { status: 'present', source: 'manual', timestamp: new Date().toISOString() }; });
+    saveAttendance(); renderStudents(); refreshReport(); showToast('Batch process executed.');
+}
+
+function resetAttendance() {
+    if (!confirm('Flush transient tracking maps?')) return;
+    attendance = {}; saveAttendance(); renderStudents(); refreshReport(); showToast('Volatiles initialized.');
+}
+
+function generateQR() {
+    const lat = parseFloat(document.getElementById('classLat').value);
+    const lng = parseFloat(document.getElementById('classLng').value);
+    const radius = parseFloat(document.getElementById('classRadius').value) || 50;
+    const expiryMin = parseInt(document.getElementById('expiryMinutes').value) || 5;
+    if (isNaN(lat) || isNaN(lng)) return alert('Latitude/Longitude constraint profiles missing.');
+
+    localStorage.setItem('classLat', lat); localStorage.setItem('classLng', lng); localStorage.setItem('classRadius', radius);
+    const sessionId = 'S-' + Date.now().toString(36).toUpperCase();
+    const now = Date.now();
+    
+    currentSession = { session: sessionId, class: currentClass, lat, lng, radius, timestamp: now, expiresAt: now + (expiryMin * 60000) };
+    localStorage.setItem('currentSession', JSON.stringify(currentSession));
+    
+    if(!qrCanvasInstance) qrCanvasInstance = new QRious({ element: document.getElementById('qrCanvas'), size: 220, level: 'H' });
+    qrCanvasInstance.value = JSON.stringify(currentSession);
+    
+    document.getElementById('qrData').textContent = `Tracking Session Boundary Hash: ${sessionId}`;
+    document.getElementById('qrDisplay').style.display = 'flex';
+    updateSessionInfo(); startCountdown(currentSession.expiresAt);
+}
+
+function startCountdown(expiryTime) {
+    if (countdownInterval) clearInterval(countdownInterval);
+    const display = document.getElementById('countdownDisplay');
+    countdownInterval = setInterval(() => {
+        const diff = Math.max(0, expiryTime - Date.now());
+        if (diff <= 0) {
+            display.textContent = '⏰ Session validity expired.'; display.style.color = 'var(--danger)';
+            clearInterval(countdownInterval);
+        } else {
+            display.textContent = `⏳ Token active runtime window: ${Math.floor(diff / 60000)}m ${Math.floor((diff % 60000) / 1000)}s`;
+            display.style.color = 'var(--primary)';
+        }
+    }, 1000);
+}
+
+function updateSessionInfo() {
+    document.getElementById('sessionInfo').textContent = currentSession ? `Active Frame: ${currentSession.session}` : 'No active tracking context.';
+}
+
+function refreshReport() {
+    const tbody = document.getElementById('reportBody');
+    const summary = document.getElementById('reportSummary');
+    if (!students.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Database evaluates null elements.</td></tr>';
+        summary.textContent = ''; return;
+    }
+    let pCount = 0, pnd = 0;
+    tbody.innerHTML = students.map(s => {
+        const rec = getAttendanceStatus(s.id);
+        if (rec.status === 'present') pCount++; else pnd++;
+        return `<tr><td><code>${s.id}</code></td><td><strong>${s.name}</strong></td><td>${rec.status === 'present' ? '✅ Present' : rec.status === 'absent' ? '❌ Absent' : '⏳ Unresolved'}</td><td>${rec.source === 'scan' ? '📱 Scan Verified' : rec.source === 'manual' ? '🖊️ Instructor Manual' : '-'}</td><td>${rec.timestamp ? new Date(rec.timestamp).toLocaleTimeString() : '-'}</td></tr>`;
+    }).join('');
+    summary.innerHTML = `📊 Metrics Snapshot: Present: ${pCount} · Remaining Pending: ${pnd}`;
+}
+
+function exportReportCSV() {
+    if (!students.length) return alert('Null dataset array tracking pointer.');
+    let csv = 'Student ID,Student Name,Status Assertion,Origin Class,Logged Timestamp\n';
+    students.forEach(s => { const rec = getAttendanceStatus(s.id); csv += `"${s.id}","${s.name}","${rec.status}","${rec.source || ''}","${rec.timestamp || ''}"\n`; });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `Log_${currentClass.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+}
+
+function syncToSheets() {
+    if (!students.length) return alert('Data collection empty.');
+    const payload = { class: currentClass, date: new Date().toISOString().slice(0,10), students: students.map(s => { const rec = getAttendanceStatus(s.id); return { id: s.id, name: s.name, status: rec.status, source: rec.source, timestamp: rec.timestamp }; }) };
+    showToast('☁️ Routing streams across endpoints...');
+    fetch(SHEETS_WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(() => showToast('☁️ Endpoint safely synchronized.'))
+        .catch(() => alert('Pipeline fault. Download local CSV file backup.'));
+}
+
+function showToast(msg) {
+    const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show');
+    clearTimeout(el._timer); el._timer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// Check local restore frames
+const saved = localStorage.getItem('currentSession');
+if (saved) {
+    try {
+        currentSession = JSON.parse(saved);
+        if (currentSession && currentSession.expiresAt > Date.now()) {
+            setTimeout(() => {
+                qrCanvasInstance = new QRious({ element: document.getElementById('qrCanvas'), size: 220, level: 'H' });
+                qrCanvasInstance.value = saved;
+                document.getElementById('qrData').textContent = `Session Token: ${currentSession.session}`;
+                document.getElementById('qrDisplay').style.display = 'flex';
+                startCountdown(currentSession.expiresAt);
+            }, 300);
+        }
+    } catch(e){}
+}
+renderStudents(); refreshReport();
+</script>
+</body>
+</html>
