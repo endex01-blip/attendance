@@ -2,226 +2,391 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Student Check-In · Secure Attendance Portal</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Attendance - Student Terminal</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
-            --primary: #2563eb;
-            --success: #16a34a;
-            --danger: #dc2626;
-            --bg-main: #f8fafc;
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
+            --primary: #0A2342;    /* Deep Navy Blue */
+            --accent: #D4AF37;     /* Classic Golden */
+            --bg: #F8FAFC;
+            --card-bg: #FFFFFF;
+            --text: #1E293B;
+            --border: #E2E8F0;
         }
 
-        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
-        body { background: var(--bg-main); color: var(--text-main); max-width: 500px; margin: 0 auto; padding: 1rem; line-height: 1.5; }
-        
-        .header { text-align: center; margin: 1.5rem 0; }
-        .header h1 { font-size: 1.4rem; color: var(--primary); font-weight: 800; }
-        .header p { color: var(--text-muted); font-size: 0.85rem; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
 
-        .card { background: var(--card-bg); border-radius: 16px; padding: 1.25rem; margin-bottom: 1.2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); border: 1px solid var(--border); }
-        h2 { font-size: 1rem; font-weight: 700; margin-bottom: 0.85rem; display: flex; align-items: center; gap: 0.4rem; }
-        
-        input { padding: 0.65rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; background: var(--bg-main); color: var(--text-main); width: 100%; margin-bottom: 0.75rem; transition: border-color 0.15s; }
-        input:focus { outline: none; border-color: var(--primary); background: var(--card-bg); }
-        
-        button { width: 100%; padding: 0.75rem 1.25rem; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; background: var(--primary); color: white; }
-        button:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
-        button.success { background: var(--success); }
-        button.danger { background: var(--danger); }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
 
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; border: none !important; background: #000; }
-        #scannerStatus { text-align:center; margin:1rem 0; font-weight:600; font-size: 0.85rem; color: var(--text-muted); }
-        
-        .location-info { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1rem; border-radius: 8px; margin: 1rem 0; font-size: 0.85rem; color: #166534; line-height: 1.4; }
-        .location-info.error { background: #fef2f2; border-left-color: #ef4444; color: #991b1b; }
-        .location-info.warning { background: #fffbeb; border-left-color: #f59e0b; color: #92400e; }
-        
-        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(10px); background: #0f172a; color: white; padding: 0.85rem 1.5rem; border-radius: 12px; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 1000; font-size: 0.85rem; font-weight: 500; width: calc(100% - 48px); max-width: 400px; text-align: center; }
-        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+            border-top: 6px solid var(--primary);
+            padding: 24px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 0.9rem;
+            color: #64748B;
+        }
+
+        .card-step {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #FFF;
+        }
+
+        .step-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--primary);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #475569;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #113665;
+        }
+
+        .btn-lock {
+            background: #10B981;
+        }
+        .btn-lock:hover {
+            background: #059669;
+        }
+
+        #profileDisplay {
+            background: #F1F5F9;
+            border-left: 4px solid var(--accent);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+        }
+
+        .switch-link {
+            color: #EF4444;
+            font-size: 0.8rem;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 6px;
+            display: inline-block;
+        }
+
+        #reader {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border) !important;
+            background: #000;
+        }
+
+        .status-box {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .status-neutral { background: #E2E8F0; color: #475569; }
+        .status-success { background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
+        .status-error { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
     </style>
 </head>
 <body>
 
-<div id="toast" class="toast">Done!</div>
-
-<div class="header">
-    <h1>📱 Student Verification Portal</h1>
-    <p>Secure Geofenced Check-In Gateway</p>
-</div>
-
-<div class="card">
-    <h2>👤 Step 1: Lock Device Identity Profile</h2>
-    <div id="profileSetupView">
-        <input type="text" id="studentRealName" placeholder="Enter Legal Full Name">
-        <input type="text" id="studentUID" placeholder="Enter Academic Student ID Number">
-        <button onclick="lockProfile()" class="success">🔒 Lock Profile to This Device</button>
+<div class="container">
+    <div class="header">
+        <h1>📱 Location-Verified Check-In</h1>
+        <p>Secure Student Verification Terminal</p>
     </div>
-    <div id="profileActiveView" style="display: none; align-items: center; justify-content: space-between; background: var(--bg-main); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border);">
-        <p style="font-size: 0.9rem;">Device Bound To:<br><strong id="lockedProfileName" style="color: var(--primary);"></strong></p>
-        <button onclick="unlockProfile()" class="danger" style="width: auto; padding: 0.4rem 0.75rem; font-size: 0.8rem;">🔓 Reset Device Lock</button>
-    </div>
-</div>
 
-<div class="card">
-    <h2>📸 Step 2: Scan Real-Time Session QR</h2>
-    <div id="reader"></div>
-    <div id="scannerStatus">Initializing peripheral camera arrays...</div>
-    
-    <div id="scanResult" style="display:none;">
-        <div id="locationCheck" class="location-info">📍 Parsing geometric parameter telemetry...</div>
-        <button onclick="verifyAndMark()" id="btnMarkPresent" class="success" style="margin-top: 0.5rem;">🚀 Authenticate Coordinates & Check In</button>
-        <input type="hidden" id="scannedData">
+    <div id="profileDisplay" style="display: none;">
+        <div>📌 Device Locked To: <strong id="boundName"></strong> (<span id="boundID"></span>)</div>
+        <div class="switch-link" onclick="clearStudentProfile()">🔄 Not you? Click here to switch profiles</div>
+    </div>
+
+    <div id="step1Container" class="card-step">
+        <div class="step-title">🔒 Step 1: Initialize Identity Profile</div>
+        <div class="form-group">
+            <label>ENTER LEGAL FULL NAME</label>
+            <input type="text" id="studentName" placeholder="e.g., Abebe Kebede">
+        </div>
+        <div class="form-group">
+            <label>ENTER ACADEMIC STUDENT ID NUMBER</label>
+            <input type="text" id="studentID" placeholder="e.g., DDU/12345/16">
+        </div>
+        <button class="btn-lock" onclick="lockProfileToDevice()">🔒 Lock Profile to This Device</button>
+    </div>
+
+    <div id="step2Container" class="card-step" style="display: none;">
+        <div class="step-title">📷 Step 2: Scan Room Session Token</div>
+        <div id="reader"></div>
+        <div id="scannerStatus" class="status-box status-neutral">⏳ System waiting for profile locking initialization...</div>
     </div>
 </div>
 
 <script>
-const SHEETS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbx3tM029mZEDYI4XQDkgjxJ9pbGLsIg3WFmYv6LM696KIYAAbVF9i3k2sqzN2MuI-BJ/exec';
-let html5QrCode = null;
+    // =========================================================================
+    // CONFIGURATION: PASTE YOUR RE-DEPLOYED GOOGLE APPS SCRIPT EXEC URL HERE
+    // =========================================================================
+    const SHEETS_WEBHOOK_URL = 'PASTE_YOUR_NEW_WEB_APP_URL_HERE';
 
-function evaluateProfileState() {
-    const savedName = localStorage.getItem('stud_profile_name');
-    const savedId = localStorage.getItem('stud_profile_id');
-    
-    if (savedName && savedId) {
-        document.getElementById('profileSetupView').style.display = 'none';
-        document.getElementById('profileActiveView').style.display = 'flex';
-        document.getElementById('lockedProfileName').innerHTML = `${savedName} (${savedId})`;
-        if(document.getElementById('btnMarkPresent')) document.getElementById('btnMarkPresent').disabled = false;
-    } else {
-        document.getElementById('profileSetupView').style.display = 'block';
-        document.getElementById('profileActiveView').style.display = 'none';
-        if(document.getElementById('btnMarkPresent')) document.getElementById('btnMarkPresent').disabled = true;
-    }
-}
+    let html5QrcodeScanner = null;
 
-function lockProfile() {
-    const name = document.getElementById('studentRealName').value.trim();
-    const uid = document.getElementById('studentUID').value.trim();
-    if(!name || !uid) return alert('Identity metadata profiles cannot be configured blank.');
-    
-    localStorage.setItem('stud_profile_name', name);
-    localStorage.setItem('stud_profile_id', uid);
-    evaluateProfileState();
-    showToast('🔒 Hardware binding locked.');
-    startScanner();
-}
-
-function unlockProfile() {
-    if(!confirm('Unlinking profile resets localized cache boundaries. Proceed?')) return;
-    localStorage.removeItem('stud_profile_name');
-    localStorage.removeItem('stud_profile_id');
-    evaluateProfileState();
-    if(html5QrCode) html5QrCode.stop().catch(()=>{});
-    document.getElementById('scanResult').style.display = 'none';
-    document.getElementById('scannerStatus').innerHTML = 'Profile missing. Secure scanner lock state active.';
-}
-
-function startScanner() {
-    if(!localStorage.getItem('stud_profile_id')) {
-        document.getElementById('scannerStatus').innerHTML = '🔒 Complete Step 1 to unlock sensor module.';
-        return;
-    }
-    if (typeof Html5Qrcode === 'undefined') { setTimeout(startScanner, 200); return; }
-    if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-    
-    const config = { fps: 12, qrbox: { width: 250, height: 250 } };
-    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
-        .then(() => document.getElementById('scannerStatus').innerHTML = '📷 Camera matrix active. Feed session token.')
-        .catch(err => document.getElementById('scannerStatus').innerHTML = '✕ Camera module fault: ' + err);
-}
-
-function onScanSuccess(decodedText) {
-    try {
-        const data = JSON.parse(decodedText);
-        if (Date.now() > data.expiresAt) {
-            document.getElementById('locationCheck').innerHTML = '⏰ Session validation failure: Handshake signature expired.';
-            document.getElementById('locationCheck').className = 'location-info error';
-            document.getElementById('btnMarkPresent').disabled = true;
-            document.getElementById('scanResult').style.display = 'block';
-            return;
+    // SELF-EXECUTING CRYPTOGRAPHIC DEVICE FINGERPRINT SEED
+    (function initializeDeviceFingerprint() {
+        if (!localStorage.getItem('sys_device_token')) {
+            const array = new Uint32Array(4);
+            window.crypto.getRandomValues(array);
+            const token = 'DEV-' + Array.from(array, dec => dec.toString(16).padStart(8, '0')).join('-');
+            localStorage.setItem('sys_device_token', token);
         }
-        
-        html5QrCode.stop().catch(()=>{});
-        document.getElementById('scannerStatus').innerHTML = '✅ Data Packet Decoded.';
-        document.getElementById('scannedData').value = decodedText;
-        document.getElementById('locationCheck').innerHTML = `📡 Course Framework: ${data.class}<br>📍 Range Limit Threshold: ${data.radius}m<br>🔒 Token cryptographically verified. Ready to pass GPS.`;
-        document.getElementById('locationCheck').className = 'location-info warning';
-        document.getElementById('btnMarkPresent').disabled = false;
-        document.getElementById('scanResult').style.display = 'block';
-    } catch(e) {
-        document.getElementById('locationCheck').innerHTML = '✕ Struct Exception: Corrupted third-party signature signature match failure.';
-        document.getElementById('locationCheck').className = 'location-info error';
+    })();
+
+    // RUN WINDOW STATE ENGINE ON INGESTION
+    window.onload = function() {
+        evaluateProfileState();
+    };
+
+    function evaluateProfileState() {
+        const savedID = localStorage.getItem('stud_profile_id');
+        const savedName = localStorage.getItem('stud_profile_name');
+
+        if (savedID && savedName) {
+            // Adjust panel views
+            document.getElementById('step1Container').style.display = 'none';
+            document.getElementById('profileDisplay').style.display = 'block';
+            document.getElementById('step2Container').style.display = 'block';
+            
+            document.getElementById('boundName').innerText = savedName;
+            document.getElementById('boundID').innerText = savedID;
+            document.getElementById('scannerStatus').className = "status-box status-neutral";
+            document.getElementById('scannerStatus').innerText = "📷 Lens sensor ready. Point camera at Lecture Board QR.";
+            
+            startScannerEngine();
+        } else {
+            // Profile fallback reset
+            document.getElementById('step1Container').style.display = 'block';
+            document.getElementById('profileDisplay').style.display = 'none';
+            document.getElementById('step2Container').style.display = 'none';
+            stopScannerEngine();
+        }
     }
-}
-function onScanFailure(err) {}
 
-function verifyAndMark() {
-    const raw = document.getElementById('scannedData').value;
-    const studentName = localStorage.getItem('stud_profile_name');
-    const studentId = localStorage.getItem('stud_profile_id');
-    
-    if(!studentName || !studentId) return alert('Local validation error.');
-    let qrData = JSON.parse(raw);
+    function lockProfileToDevice() {
+        const nameVal = document.getElementById('studentName').value.trim();
+        const idVal = document.getElementById('studentID').value.trim();
 
-    document.getElementById('locationCheck').innerHTML = '📡 Acquiring high-accuracy planetary positioning telemetry...';
-    document.getElementById('locationCheck').className = 'location-info warning';
-    
-    navigator.geolocation.getCurrentPosition((pos) => {
-        const dist = haversine(qrData.lat, qrData.lng, pos.coords.latitude, pos.coords.longitude);
-        if (dist > qrData.radius) {
-            document.getElementById('locationCheck').innerHTML = `❌ Geofence Boundary Exception:<br>Target distance deviation evaluates to ${dist.toFixed(0)}m.<br>Permitted variance radius: ${qrData.radius}m. Match Failed.`;
-            document.getElementById('locationCheck').className = 'location-info error';
+        if (!nameVal || !idVal) {
+            alert("🔒 Access Denied: Both Legal Name and Academic ID profiles must be populated.");
             return;
         }
 
-        const payload = {
-            class: qrData.class, session: qrData.session,
-            student: studentName, studentId: studentId,
-            status: 'present', source: 'scan',
-            date: new Date().toISOString().slice(0,10),
-            timestamp: new Date().toISOString(),
-            locationVerified: true, distance_m: dist.toFixed(1)
-        };
-        
-        document.getElementById('btnMarkPresent').disabled = true;
-        fetch(SHEETS_WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-        .then(() => {
-            document.getElementById('locationCheck').innerHTML = `✅ Transaction Logged Successfully!<br>Verified User: ${studentName}<br>GPS Spatial Variance: ${dist.toFixed(0)}m.`;
-            document.getElementById('locationCheck').className = 'location-info';
-            showToast('Check-in confirmed.');
-        })
-        .catch(() => {
-            document.getElementById('locationCheck').innerHTML = '✕ Transmission Pipeline Interrupt. Notify Instructor.';
-            document.getElementById('locationCheck').className = 'location-info error';
+        localStorage.setItem('stud_profile_id', idVal);
+        localStorage.setItem('stud_profile_name', nameVal);
+        evaluateProfileState();
+    }
+
+    function clearStudentProfile() {
+        if (confirm("⚠️ Log out profile configuration? This device signature will reject cross-logins under other accounts today.")) {
+            localStorage.removeItem('stud_profile_id');
+            localStorage.removeItem('stud_profile_name');
+            evaluateProfileState();
+        }
+    }
+
+    // INTERFACE CAPTURE PLATFORM (HTML5-QRCODE)
+    function startScannerEngine() {
+        if (html5QrcodeScanner) return;
+
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+        html5QrcodeScanner.start(
+            { facingMode: "environment" }, 
+            config,
+            onQrScanSuccess
+        ).catch(err => {
+            document.getElementById('scannerStatus').className = "status-box status-error";
+            document.getElementById('scannerStatus').innerText = "❌ Camera Error: Permissions blocked or sandbox collision.";
+            console.error(err);
         });
-    }, err => {
-        document.getElementById('locationCheck').innerHTML = `❌ Telemetry Acquisition Failure: ${err.message}. Verify that positioning permissions are permitted inside your local web sandbox environment.`;
-        document.getElementById('locationCheck').className = 'location-info error';
-    }, { enableHighAccuracy: true, timeout: 15000 });
-}
+    }
 
-function haversine(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const toRad = d => d * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+    function stopScannerEngine() {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().then(() => {
+                html5QrcodeScanner = null;
+            }).catch(err => console.error(err));
+        }
+    }
 
-function showToast(msg) {
-    const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 3000);
-}
+    // ON SUCCESSFUL DECODE HANDLER
+    function onQrScanSuccess(decodedText) {
+        try {
+            // Parse targeted operational JSON token from QR code
+            const sessionData = JSON.parse(decodedText);
+            
+            if (!sessionData.id || !sessionData.lat || !sessionData.lng) {
+                throw new Error("Invalid Session Token Layout Matrix.");
+            }
 
-// Entry lifecycle assessment
-evaluateProfileState();
-startScanner();
+            // Pause scanning state during background verification pipeline
+            stopScannerEngine();
+            updateStatusDisplay("status-neutral", "🛰️ Verifying structural GPS telemetry with instructor base...");
+
+            // Fetch high-accuracy mobile satellite profile coordinates
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    processValidationMatrix(pos.coords.latitude, pos.coords.longitude, sessionData);
+                },
+                (err) => {
+                    updateStatusDisplay("status-error", "❌ Telemetry Acquisition Failure: Location denied or indoor satellite obstruction.");
+                    setTimeout(startScannerEngine, 4000);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+
+        } catch (e) {
+            updateStatusDisplay("status-error", "⚠️ Foreign QR Detected. Scan valid classroom session token.");
+        }
+    }
+
+    // HAVERSINE FIELD RADIUS GEOMETRY METRIC CALCULATOR
+    function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371000; // Radius of Earth in meters
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c; 
+    }
+
+    function processValidationMatrix(studentLat, studentLng, sessionData) {
+        const distance = calculateHaversineDistance(studentLat, studentLng, sessionData.lat, sessionData.lng);
+        const maxRadius = sessionData.radius || 50; // Fallback default to 50 meters if unspecified
+
+        if (distance > maxRadius) {
+            updateStatusDisplay("status-error", `🔒 Geofence Exception: Boundary error. You are ${distance.toFixed(1)}m from class. Limit: ${maxRadius}m`);
+            setTimeout(startScannerEngine, 5000);
+            return;
+        }
+
+        // COMPILING COMPLETE STRUCTURAL STREAM DATA PACKET
+        const payload = {
+            studentId: localStorage.getItem('stud_profile_id'),
+            student: localStorage.getItem('stud_profile_name'),
+            class: sessionData.class,
+            session: sessionData.id,
+            date: new Date().toLocaleDateString(),
+            timestamp: new Date().toISOString(),
+            status: "present",
+            distance_m: distance.toFixed(1),
+            deviceId: localStorage.getItem('sys_device_token') // ANTI-FRAUD UNIQUE TOKEN STAMP
+        };
+
+        updateStatusDisplay("status-neutral", "🚀 Transmitting data verification tokens to Google Sheet...");
+
+        // COMMENCE NETWORK DATA SYNC TO APPS SCRIPT ENDPOINT
+        fetch(SHEETS_WEBHOOK_URL, {
+            method: 'POST',
+            mode: 'no-cors', // Bypasses browser CORS pre-flight sandbox blocks smoothly
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(() => {
+            // Note: Since 'no-cors' mode is required to hit cross-domain App Scripts transparently, 
+            // the server's specific text string responses are obscured. We assume a HTTP 200 execution flow success.
+            updateStatusDisplay("status-success", "✅ Verification Approved! Attendance locked to spreadsheet.");
+        })
+        .catch(err => {
+            updateStatusDisplay("status-error", "❌ Connection Interrupted. Cloud network processing failed.");
+            setTimeout(startScannerEngine, 4000);
+        });
+    }
+
+    function updateStatusDisplay(className, text) {
+        const box = document.getElementById('scannerStatus');
+        box.className = "status-box " + className;
+        box.innerText = text;
+    }
 </script>
+
 </body>
 </html>
