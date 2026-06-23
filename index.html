@@ -339,48 +339,42 @@
     }
 
     function processValidationMatrix(studentLat, studentLng, sessionData) {
-        const distance = calculateHaversineDistance(studentLat, studentLng, sessionData.lat, sessionData.lng);
-        const maxRadius = sessionData.radius || 50; // Fallback default to 50 meters if unspecified
+    const distance = calculateHaversineDistance(studentLat, studentLng, sessionData.lat, sessionData.lng);
+    const maxRadius = sessionData.radius || 50;
 
-        if (distance > maxRadius) {
-            updateStatusDisplay("status-error", `🔒 Geofence Exception: Boundary error. You are ${distance.toFixed(1)}m from class. Limit: ${maxRadius}m`);
-            setTimeout(startScannerEngine, 5000);
-            return;
-        }
-
-        // COMPILING COMPLETE STRUCTURAL STREAM DATA PACKET
-        const payload = {
-            studentId: localStorage.getItem('stud_profile_id'),
-            student: localStorage.getItem('stud_profile_name'),
-            class: sessionData.class,
-            session: sessionData.id,
-            date: new Date().toLocaleDateString(),
-            timestamp: new Date().toISOString(),
-            status: "present",
-            distance_m: distance.toFixed(1),
-            deviceId: localStorage.getItem('sys_device_token') // ANTI-FRAUD UNIQUE TOKEN STAMP
-        };
-
-        updateStatusDisplay("status-neutral", "🚀 Transmitting data verification tokens to Google Sheet...");
-
-        // COMMENCE NETWORK DATA SYNC TO APPS SCRIPT ENDPOINT
-        fetch(SHEETS_WEBHOOK_URL, {
-            method: 'POST',
-            mode: 'no-cors', // Bypasses browser CORS pre-flight sandbox blocks smoothly
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(() => {
-            // Note: Since 'no-cors' mode is required to hit cross-domain App Scripts transparently, 
-            // the server's specific text string responses are obscured. We assume a HTTP 200 execution flow success.
-            updateStatusDisplay("status-success", "✅ Verification Approved! Attendance locked to spreadsheet.");
-        })
-        .catch(err => {
-            updateStatusDisplay("status-error", "❌ Connection Interrupted. Cloud network processing failed.");
-            setTimeout(startScannerEngine, 4000);
-        });
+    if (distance > maxRadius) {
+        updateStatusDisplay("status-error", `🔒 Geofence Exception: Boundary error. You are ${distance.toFixed(1)}m from class.`);
+        setTimeout(startScannerEngine, 5000);
+        return;
     }
 
+    // Build URL parameter string for seamless GET verification
+    const studentId = encodeURIComponent(localStorage.getItem('stud_profile_id'));
+    const studentName = encodeURIComponent(localStorage.getItem('stud_profile_name'));
+    const className = encodeURIComponent(sessionData.class);
+    const sessionId = encodeURIComponent(sessionData.id);
+    const deviceToken = encodeURIComponent(localStorage.getItem('sys_device_token'));
+    const distStr = encodeURIComponent(distance.toFixed(1));
+
+    updateStatusDisplay("status-neutral", "🚀 Testing device signature security keys...");
+
+    // Transmit data stream using transparent CORS-compliant GET parameters
+    fetch(`${SHEETS_WEBHOOK_URL}?action=checkin&studentId=${studentId}&student=${studentName}&class=${className}&session=${sessionId}&deviceId=${deviceToken}&distance_m=${distStr}`)
+    .then(res => res.json())
+    .then(response => {
+        if (response.status === 'error') {
+            // Displays the anti-fraud error modal right on the student screen
+            updateStatusDisplay("status-error", response.message);
+            alert(response.message); 
+        } else {
+            updateStatusDisplay("status-success", "✅ Verification Approved! Attendance locked to spreadsheet.");
+        }
+    })
+    .catch(err => {
+        updateStatusDisplay("status-error", "❌ Connection Interrupted. Verification terminal failed.");
+        setTimeout(startScannerEngine, 4000);
+    });
+}
     function updateStatusDisplay(className, text) {
         const box = document.getElementById('scannerStatus');
         box.className = "status-box " + className;
